@@ -11,7 +11,7 @@ from scipy.stats import norm
 from scipy.stats import t
 import locale
 
-locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+# locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 
 #### Carregando o dataframe e o metadados
 # metadados = pd.read_pickle('./obj/metadados.pkl')
