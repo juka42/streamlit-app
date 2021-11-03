@@ -2,3 +2,7 @@
 seaborn
 matplotlib
 statsmodels
+patsy
+numpy
+scipy
+locale
