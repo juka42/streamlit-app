@@ -1,1 +1,4 @@
-python -m pip install seaborn
+###### Requirements without Version Specifiers ######
+seaborn
+matplotlib
+statsmodels
