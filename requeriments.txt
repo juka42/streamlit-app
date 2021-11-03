@@ -1,1 +1,1 @@
-pip install seaborn
+python -m pip install seaborn
