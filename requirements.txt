@@ -5,4 +5,4 @@ statsmodels
 patsy
 numpy
 scipy
-locale
+# locale
