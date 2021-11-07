@@ -9,9 +9,6 @@ import numpy as np
 import pickle
 from scipy.stats import norm
 from scipy.stats import t
-import locale
-
-# locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 
 #### Carregando o dataframe e o metadados
 # metadados = pd.read_pickle('./obj/metadados.pkl')
@@ -58,6 +55,7 @@ if (metadados_csv is not None):
         prefixo = coleta+'_'+constr
         variaveis = [x for x in df.columns if x.find(prefixo)>=0]
         variaveis = [x for x in variaveis if x[-1].isalpha()] + [x for x in variaveis if x[-1].isnumeric()]
+        # st.write(df.columns[200:])
         vary = st.sidebar.selectbox('Selecione a variavel',variaveis)
 
         option = coleta+'_'+constr
@@ -85,6 +83,8 @@ if (metadados_csv is not None):
         dodge = .05 # deslocamento do fator 'líder' no gráfico 2
 
         #### Dados do gráfico 1
+        df['t1t2t3'] = df.t1t2t3.map({'Cont': 'Contingência', 'Home': 'Home Office', 'RTW1':'RTW 1', 'RTW2':'RTW 2'})
+
         gb1 = df[df['comp']].groupby('t1t2t3')
         tab1 = gb1[[vary]].count()
         tab1.columns = ['N']
@@ -161,24 +161,31 @@ if (metadados_csv is not None):
         st.pyplot(fig)
         # st.plotly_chart(fig)
 
-        def formata(serie_, casas_):
-        #     serie.apply(lambda x: locale.format_string('%.2f', x))
-            return serie_.apply(lambda x: locale.format_string(f'%.{casas_}f', x))
-
-        def formatadf(df_, casas):
-            return df_.apply(lambda x: formata(x, casas))
-
         #### Tabelas com os dados do gráfico
         st.header(f'Tabela de {nm_construto} por grupo')
-        st.table(formatadf(tab1[['N', vary, 'std_err']], 2))
+        st.table(
+                tab1[['N', vary, 'std_err']]\
+                .rename(columns={"std_err":"Erro padrão"})\
+                .style.format(subset=[vary, 'Erro padrão'],decimal=',', precision=2)\
+                .bar(subset=[vary], align="mid")
+        )
 
 
         st.header(f'Tabela de {nm_construto} por grupo e liderança')
-        st.table(formatadf(tab2[['N', vary, 'std_err']], 2))
+        tab2 = tab2[['N', vary, 'std_err']].reset_index()
+        tab2.lider = tab2.lider.map({True:'Sim', False:'Não'})
+        tab2.rename(columns={'t1t2t3':'Grupo', 'lider':'Líder'}, inplace=True)
+
+        st.dataframe(
+            tab2[['Líder', 'Grupo', 'N', vary, 'std_err']]\
+            .rename(columns={"std_err":"Erro padrão"})\
+            .style.hide_index().format(subset=[vary, 'Erro padrão'],decimal=',', precision=2).hide_index()\
+            .bar(subset=[vary], align="mid")
+        )
 
         #### Análise de variância com 1 fator
         st.header('Anova - Grupo vs '+ vary)
-        y, dm = dmatrices(vary + ' ~ C(t1t2t3, Treatment("Home"))', df[df['comp']], return_type='dataframe')
+        y, dm = dmatrices(vary + ' ~ C(t1t2t3, Treatment("Home Office"))', df[df['comp']], return_type='dataframe')
         dm.columns = ['Intercepto', 'Contingencia vs home',
                'RTW1 vs home',
                'RTW2 vs home']
@@ -186,15 +193,27 @@ if (metadados_csv is not None):
         summ = anova.summary()
 
         #### Análise de variância com 2 fatores
+
         st.markdown(summ.tables[0].as_html().replace('.',','), unsafe_allow_html=True)
-        st.markdown(summ.tables[1].as_html().replace('.',','), unsafe_allow_html=True)
+
+        results_as_html = summ.tables[1].as_html()
+        tab_coef = pd.read_html(results_as_html, header=0, index_col=0)[0]
+        tab_coef.columns = ['Coeficiente', 'Erro padrão', 't', 'Valor-P', 'IC inf.', 'IC max.']
+        left = pd.Series([0.0], index=["Valor-P"])
+        tab1_style = tab_coef.style.format(decimal=',', precision=4).highlight_between(left=left
+                                 , right=.05
+                                 , axis=1
+                                 , props='color:red'
+                                 , subset='Valor-P'
+                                )
+        st.table(tab1_style)
 
         st.header('Anova - Grupo vs Lider vs '+ vary)
 
-        y, dm = dmatrices(vary + ' ~ C(t1t2t3, Treatment("Home")) + lider'
+        y, dm = dmatrices(vary + ' ~ C(t1t2t3, Treatment("Home Office")) + lider'
                             , df[df['comp']]
                             , return_type='dataframe')
-        dm.columns = ['Intercepto', 'Contingencia vs home', 'RTW1 vs home',
+        dm.columns = ['Intercepto', 'Contingencia vs home office', 'RTW1 vs home office',
                'RTW2 vs home', 'Líder (sim vs não)']
 
         anova = sm.OLS(y, dm).fit()
@@ -202,4 +221,18 @@ if (metadados_csv is not None):
 
         # st.write(anova.summary2())
         st.markdown(summ.tables[0].as_html().replace('.',','), unsafe_allow_html=True)
-        st.markdown(summ.tables[1].as_html().replace('.',','), unsafe_allow_html=True)
+
+        results_as_html = summ.tables[1].as_html()
+        tab_coef = pd.read_html(results_as_html, header=0, index_col=0)[0]
+        tab_coef.columns = ['Coeficiente', 'Erro padrão', 't', 'Valor-P', 'IC inf.', 'IC max.']
+        left = pd.Series([0.0], index=["Valor-P"])
+        tab1_style = tab_coef.style.format(decimal=',', precision=4).highlight_between(left=left
+                                 , right=.05
+                                 , axis=1
+                                 , props='color:red'
+                                 , subset='Valor-P'
+                                )
+        st.table(tab1_style)
+
+
+        # st.markdown(summ.tables[1].as_html().replace('.',','), unsafe_allow_html=True)
